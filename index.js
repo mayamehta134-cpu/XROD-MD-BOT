@@ -6,7 +6,7 @@ const path = require('path');
 const qrcode = require('qrcode-terminal');
 
 // =============== CONFIGURATION ===============
-const BOT_TOKEN = '8155564776:AAF2nJqNrFQpB3hBpJk9LpVpQ2Xp3VpQ2X'; // Telegram Bot Token
+const BOT_TOKEN = '8727180497:AAEEa4tCJ0lWHyc8DmnydKXvJzMeenCwgH8'; // Telegram Bot Token
 const WHATSAPP_CHANNEL_LINK = 'https://whatsapp.com/channel/0029VbCWpej7oQhWH4A2HK2k';
 const PREFIX = ".";
 
