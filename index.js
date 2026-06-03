@@ -3,7 +3,7 @@ const { Telegraf, Markup } = require('telegraf');
 const Pino = require('pino');
 const fs = require('fs');
 const path = require('path');
-const qrcode = require('qrcode');
+const qrcode = require('qrcode-terminal');
 
 // =============== CONFIGURATION ===============
 const BOT_TOKEN = '8155564776:AAF2nJqNrFQpB3hBpJk9LpVpQ2Xp3VpQ2X'; // Telegram Bot Token
@@ -14,10 +14,12 @@ const PREFIX = ".";
 if (!fs.existsSync('./sessions')) fs.mkdirSync('./sessions');
 if (!fs.existsSync('./auth_info_baileys')) fs.mkdirSync('./auth_info_baileys');
 
-// =============== STORE PLUGINS ===============
+// =============== TELEGRAM BOT SETUP ===============
+const bot = new Telegraf(BOT_TOKEN);
+const telegramSessions = new Map();
+
+// Store plugins
 let plugins = new Map();
-let currentQR = null;
-let whatsappSock = null;
 
 // Load all plugins from Plugins folder
 function loadPlugins() {
@@ -45,46 +47,11 @@ function loadPlugins() {
                     console.log(`✅ Loaded: ${file}`);
                 }
             } catch(e) {
-                console.log(`❌ Error loading ${file}: ${e.message}`);
+                console.log(`❌ Error loading ${file}`);
             }
         }
     }
     console.log(`\n📦 Total ${loadedCount} plugins loaded!\n`);
-}
-
-// =============== TELEGRAM BOT SETUP ===============
-const bot = new Telegraf(BOT_TOKEN);
-const telegramSessions = new Map();
-
-// Generate QR and send to Telegram
-async function sendQRToTelegram(ctx) {
-    if (!whatsappSock) {
-        return ctx.reply('❌ WhatsApp bot is not ready yet. Please wait...');
-    }
-    
-    // Generate QR code
-    const qrBuffer = await qrcode.toBuffer(currentQR || 'https://xrod.com');
-    
-    await ctx.replyWithPhoto(
-        { source: qrBuffer },
-        {
-            caption: `
-╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮
-┃              📱 QR CODE TO PAIR 📱              ┃
-╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
-
-📌 *How to pair:*
-
-1️⃣ Open WhatsApp
-2️⃣ Three Dots (⋮) → Linked Devices
-3️⃣ Tap "Link a Device"
-4️⃣ Scan this QR code
-
-✅ *QR code works for ALL countries!*
-⚠️ *Code expires in 2 minutes!*
-            `
-        }
-    );
 }
 
 // =============== TELEGRAM COMMANDS ===============
@@ -102,17 +69,18 @@ bot.start((ctx) => {
 
 📌 *Commands:*
 /pair [number] - Get 8-digit code
-/qr - Get QR code to scan
-/menu - Show all WhatsApp commands
+/qr - Get QR code instructions
 /status - Check bot status
 /help - Show help menu
+
+🌍 *Supported Countries:*
+🇵🇰 Pakistan, 🇮🇳 India, 🇺🇸 USA, 🇬🇧 UK, 🇦🇪 UAE, 🇨🇦 Canada, 🇦🇺 Australia, 🇩🇪 Germany, 🇫🇷 France, 🇯🇵 Japan, 🇸🇬 Singapore, 🇲🇾 Malaysia, 🇮🇩 Indonesia, 🇧🇩 Bangladesh, 🇱🇰 Sri Lanka, 🇳🇵 Nepal + ALL others!
 
 *Made with ❤️ by XROD*
     `, Markup.inlineKeyboard([
         [Markup.button.url('📱 JOIN WHATSAPP CHANNEL', WHATSAPP_CHANNEL_LINK)],
         [Markup.button.callback('🔐 GET PAIRING CODE', 'get_pairing')],
         [Markup.button.callback('📱 GET QR CODE', 'get_qr')],
-        [Markup.button.callback('📋 SHOW MENU', 'show_menu')],
         [Markup.button.callback('📊 CHECK STATUS', 'check_status')]
     ]));
 });
@@ -134,6 +102,17 @@ bot.action('get_pairing', async (ctx) => {
 🇺🇸 USA: 1xxxxxxxxxx
 🇬🇧 UK: 44xxxxxxxxxx
 🇦🇪 UAE: 971xxxxxxxxx
+🇨🇦 Canada: 1xxxxxxxxxx
+🇦🇺 Australia: 61xxxxxxxxx
+🇩🇪 Germany: 49xxxxxxxxx
+🇫🇷 France: 33xxxxxxxxx
+🇯🇵 Japan: 81xxxxxxxxx
+🇸🇬 Singapore: 65xxxxxxxx
+🇲🇾 Malaysia: 60xxxxxxxx
+🇮🇩 Indonesia: 62xxxxxxxx
+🇧🇩 Bangladesh: 880xxxxxxxxx
+🇱🇰 Sri Lanka: 94xxxxxxxx
+🇳🇵 Nepal: 977xxxxxxxx
 
 *Example:* /pair 923001234567
     `);
@@ -141,40 +120,23 @@ bot.action('get_pairing', async (ctx) => {
 
 bot.action('get_qr', async (ctx) => {
     await ctx.answerCbQuery();
-    await sendQRToTelegram(ctx);
-});
+    ctx.reply(`
+╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮
+┃            📱 GET QR CODE 📱                   ┃
+╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
 
-bot.action('show_menu', async (ctx) => {
-    await ctx.answerCbQuery();
-    
-    const menu = `
-╭━━━〔 XROD MD BOT 〕━━━⬣
-┃ 👑 .ownermenu
-┃ 🤖 .aimenu
-┃ 🎮 .funmenu
-┃ 🔥 .roastmenu
-┃ 🎵 .mediamenu
-┃ 📥 .downloadmenu
-┃ 🔍 .searchmenu
-┃ 🛠️ .toolsmenu
-┃ 👥 .groupmenu
-┃ ⚙️ .settingsmenu
-┃ 🎨 .logomenu
-┃ 📝 .textpromenu
-┃ 😂 .mememenu
-┃ 🎲 .randommenu
-┃ 💰 .economymenu
-┃ 🏆 .gamesmenu
-┃ 📊 .stalkmenu
-┃ 🌐 .convertmenu
-┃ 📚 .educationmenu
-┃ 💎 .premiummenu
-╰━━━━━━━━━━━━━━⬣
+📌 *How to pair using QR code:*
 
-📌 *Type any command on WhatsApp after pairing!*
-    `;
-    
-    ctx.reply(menu);
+1️⃣ Make sure bot is running on server
+2️⃣ Check terminal for QR code
+3️⃣ Open WhatsApp
+4️⃣ Settings → Linked Devices
+5️⃣ Tap "Link a Device"
+6️⃣ Scan the QR code from terminal
+
+✅ *QR code works for ALL countries!*
+⚠️ *Use QR code if pairing code fails*
+    `);
 });
 
 bot.action('check_status', async (ctx) => {
@@ -188,10 +150,11 @@ bot.action('check_status', async (ctx) => {
 🤖 *Service:* WhatsApp Universal Pairing
 🌍 *Coverage:* ALL countries
 📱 *Methods:* 8-Digit Code + QR Code
-📦 *Plugins loaded:* ${plugins.size}
 ⚡ *Status:* Active
+👥 *Active sessions:* ${telegramSessions.size}
 
-📌 *Use /pair [number] or /qr*
+📌 *Use /pair [countrycode][number]*
+📌 *Or use /qr for QR code method*
     `);
 });
 
@@ -204,8 +167,7 @@ bot.command('help', (ctx) => {
 📌 *Commands:*
 
 /pair [countrycode][number] - Get 8-digit code
-/qr - Get QR code to scan
-/menu - Show all WhatsApp commands
+/qr - Get QR code instructions
 /status - Check bot status
 /help - Show this menu
 
@@ -217,45 +179,17 @@ bot.command('help', (ctx) => {
 • Enter in WhatsApp → Linked Devices
 
 *Method 2 (QR Code):*
-• Send /qr command
-• Scan the QR code from Telegram
+• Use /qr for instructions
+• Scan QR from terminal
 
 🌍 *Works for ALL countries!*
+
+⚠️ *Code expires in 2 minutes!*
     `, Markup.inlineKeyboard([
         [Markup.button.url('📱 JOIN WHATSAPP CHANNEL', WHATSAPP_CHANNEL_LINK)],
         [Markup.button.callback('🔐 GET PAIRING CODE', 'get_pairing')],
         [Markup.button.callback('📱 GET QR CODE', 'get_qr')]
     ]));
-});
-
-bot.command('menu', async (ctx) => {
-    const menu = `
-╭━━━〔 XROD MD BOT 〕━━━⬣
-┃ 👑 .ownermenu
-┃ 🤖 .aimenu
-┃ 🎮 .funmenu
-┃ 🔥 .roastmenu
-┃ 🎵 .mediamenu
-┃ 📥 .downloadmenu
-┃ 🔍 .searchmenu
-┃ 🛠️ .toolsmenu
-┃ 👥 .groupmenu
-┃ ⚙️ .settingsmenu
-┃ 🎨 .logomenu
-┃ 📝 .textpromenu
-┃ 😂 .mememenu
-┃ 🎲 .randommenu
-┃ 💰 .economymenu
-┃ 🏆 .gamesmenu
-┃ 📊 .stalkmenu
-┃ 🌐 .convertmenu
-┃ 📚 .educationmenu
-┃ 💎 .premiummenu
-╰━━━━━━━━━━━━━━⬣
-
-📌 *Type any command on WhatsApp after pairing!*
-    `;
-    ctx.reply(menu);
 });
 
 bot.command('status', (ctx) => {
@@ -268,15 +202,32 @@ bot.command('status', (ctx) => {
 🤖 *Service:* WhatsApp Universal Pairing
 🌍 *Coverage:* ALL countries
 📱 *Methods:* 8-Digit Code + QR Code
-📦 *Plugins loaded:* ${plugins.size}
 ⚡ *Status:* Working
+👥 *Active sessions:* ${telegramSessions.size}
 
-📌 *Use:* /pair [number] or /qr
+📌 *Use:* /pair [countrycode][number]
+🌍 *Any country code works!*
     `);
 });
 
-bot.command('qr', async (ctx) => {
-    await sendQRToTelegram(ctx);
+bot.command('qr', (ctx) => {
+    ctx.reply(`
+╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮
+┃            📱 QR CODE METHOD 📱                ┃
+╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
+
+📌 *Follow these steps:*
+
+1️⃣ Make sure bot is running on server
+2️⃣ Check terminal for QR code
+3️⃣ Open WhatsApp
+4️⃣ Settings → Linked Devices
+5️⃣ Tap "Link a Device"
+6️⃣ Scan the QR code from terminal
+
+✅ *QR code works for ALL countries!*
+🌍 *This is the most reliable method!*
+    `);
 });
 
 bot.command('pair', async (ctx) => {
@@ -291,6 +242,8 @@ bot.command('pair', async (ctx) => {
 🇵🇰 Pakistan: /pair 923001234567
 🇮🇳 India: /pair 911234567890
 🇺🇸 USA: /pair 11234567890
+🇬🇧 UK: /pair 441234567890
+🇦🇪 UAE: /pair 971501234567
 
 🌍 *Any country code works!*
         `);
@@ -299,10 +252,10 @@ bot.command('pair', async (ctx) => {
     let number = args[1].replace(/\D/g, '');
     
     if (number.length < 10 || number.length > 15) {
-        return ctx.reply('❌ *Invalid number!*\n\nUse format: [countrycode][number]');
+        return ctx.reply('❌ *Invalid number!*\n\nUse format: [countrycode][number]\nExample: 923001234567 (Pakistan)');
     }
     
-    const msg = await ctx.reply(`🔄 *Generating pairing code for* +${number}...\n⏳ Please wait...`);
+    const msg = await ctx.reply(`🔄 *Generating pairing code for* +${number}...\n⏳ Please wait (5-10 seconds)...`);
     
     try {
         const sessionId = `session_${number}_${Date.now()}`;
@@ -340,24 +293,36 @@ bot.command('pair', async (ctx) => {
 \`\`\`
 
 ╭━━━〔 📱 HOW TO PAIR 〕━━━━━━━━━━━━━━━━━━━━━━━━╮
+┃                                                ┃
 ┃  1️⃣ Open WhatsApp                             ┃
-┃  2️⃣ Three Dots → Linked Devices               ┃
+┃  2️⃣ Three Dots (⋮) → Linked Devices           ┃
 ┃  3️⃣ Tap "Link a Device"                       ┃
-┃  4️⃣ Enter code: *${code}*                     ┃
+┃  4️⃣ Enter this code: *${code}*                ┃
+┃                                                ┃
 ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯
 
 ✅ *Valid for 2 minutes*
 📱 *Number:* +${number}
+🌍 *Country:* Auto-detected
 ⚡ *Expires in:* 2 minutes
+
+⚠️ *Don't share this code with anyone!*
                 `, { parse_mode: 'Markdown' });
                 
             } catch (err) {
-                await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, `
+                let errorMsg = `
 ❌ *Failed to generate code!*
 
-📌 *Try QR code method:* /qr
-🌍 *QR code works for ALL countries!*
-                `);
+📌 *Possible reasons:*
+• Invalid WhatsApp number
+• Number not registered on WhatsApp
+• Country code may not support pairing code
+
+🌍 *TRY QR CODE METHOD:* /qr
+
+📱 *This method works for ALL countries!*
+                `;
+                await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, errorMsg);
             }
         }, 3000);
         
@@ -365,7 +330,9 @@ bot.command('pair', async (ctx) => {
         await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, `
 ❌ *Error!* Please try again.
 
-📱 *Try QR code method:* /qr
+📱 *Usage:* /pair [countrycode][number]
+
+🌍 *Or try QR code method:* /qr
         `);
     }
 });
@@ -374,27 +341,28 @@ bot.command('pair', async (ctx) => {
 async function startWhatsAppBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
     
-    whatsappSock = makeWASocket({
+    const sock = makeWASocket({
         auth: state,
         printQRInTerminal: true,
         logger: Pino({ level: 'silent' }),
         browser: ['XROD MD', 'Chrome', '1.0.0']
     });
     
-    whatsappSock.ev.on('creds.update', saveCreds);
+    sock.ev.on('creds.update', saveCreds);
     
-    whatsappSock.ev.on('connection.update', async (update) => {
+    sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
         
         if (qr) {
-            currentQR = qr;
             console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            console.log('📱 NEW QR CODE GENERATED');
+            console.log('📱 SCAN THIS QR CODE WITH WHATSAPP');
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-            // Generate QR as text for terminal
-            const qrTerminal = await qrcode.toString(qr, { type: 'terminal', small: true });
-            console.log(qrTerminal);
-            console.log('\n📌 Type /qr on Telegram to get this QR code!\n');
+            qrcode.generate(qr, { small: true });
+            console.log('\n1. Open WhatsApp');
+            console.log('2. Tap Three Dots (⋮) → Linked Devices');
+            console.log('3. Tap "Link a Device"');
+            console.log('4. Scan this QR code');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
         }
         
         if (connection === 'open') {
@@ -413,7 +381,7 @@ async function startWhatsAppBot() {
     });
     
     // =============== WHATSAPP COMMAND HANDLER ===============
-    whatsappSock.ev.on('messages.upsert', async ({ messages }) => {
+    sock.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message) return;
         
@@ -430,21 +398,18 @@ async function startWhatsAppBot() {
             const plugin = plugins.get(command);
             try {
                 await plugin.run({
-                    XROD: whatsappSock,
-                    conn: whatsappSock,
+                    XROD: sock,
                     m: msg,
-                    message: msg,
                     inputCMD: command,
-                    text: args.join(' '),
-                    from,
-                    reply: async (txt) => await whatsappSock.sendMessage(from, { text: txt })
+                    text: args.join(''),
+                    from
                 });
             } catch(e) {
                 console.log(`Error in ${command}:`, e);
-                await whatsappSock.sendMessage(from, { text: '❌ Error executing command!' });
             }
         } else {
-            await whatsappSock.sendMessage(from, { text: `❌ Command "${command}" not found!\n\nType .menu for available commands.` });
+            // Command not found
+            await sock.sendMessage(from, { text: `❌ Command "${command}" not found!\n\nType .menu for available commands.` });
         }
     });
 }
@@ -452,7 +417,7 @@ async function startWhatsAppBot() {
 // =============== START BOTH BOTS ===============
 console.log('\n╔════════════════════════════════════════════════════════╗');
 console.log('║     🌍 XROD UNIVERSAL WHATSAPP BOT 🌍                  ║');
-console.log('║     QR Code + Pairing Code + Full Menu Working         ║');
+console.log('║     Works for ALL Countries - Pairing + QR Code        ║');
 console.log('╚════════════════════════════════════════════════════════╝\n');
 
 // Load plugins
@@ -467,8 +432,7 @@ bot.launch().then(() => {
     console.log('║     🤖 TELEGRAM BOT STARTED 🤖        ║');
     console.log('╚════════════════════════════════════════╝');
     console.log(`\n✅ Telegram Bot is running!`);
-    console.log(`🌍 Type /qr to get QR code in Telegram!`);
-    console.log(`📋 Type /menu to see all WhatsApp commands!\n`);
+    console.log(`🌍 Universal pairing for ALL countries!\n`);
 });
 
 // Graceful shutdown
